@@ -67,7 +67,7 @@ else()
 endif()
 
 
-if(NO_PKGCFG)
+if(NOT NO_PKGCFG)
 	find_package(PkgConfig REQUIRED FATAL_ERROR)
 endif()
 
@@ -105,6 +105,19 @@ if(NOT DEFINED NO_PKGCFG AND NOT "$ENV{NO_PKGCFG}" MATCHES "1")
 			libimobiledevice-1.0
 			libirecovery-1.0)
 	target_include_directories(idevicerestore PRIVATE "${DEPS_INCLUDE_DIRS}")
+else()
+	# When NO_PKGCFG is enabled, link against static libraries in dep_root
+	target_link_libraries(idevicerestore PRIVATE
+			plist-2.0
+			imobiledevice-glue-1.0
+			imobiledevice-1.0
+			irecovery-1.0
+			zip
+			ssl
+			crypto
+			z
+			usbmuxd-2.0
+			usb-1.0)
 endif()
 execute_process(COMMAND git remote get-url origin WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/idevicerestore/src" OUTPUT_VARIABLE PACKAGE_URL1 OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(REPLACE ".git" "" PACKAGE_URL PACKAGE_URL1)
