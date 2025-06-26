@@ -95,7 +95,7 @@ target_include_directories(idevicerestore PRIVATE
 		src)
 target_link_directories(idevicerestore PRIVATE
 		"${CMAKE_SOURCE_DIR}/dep_root/lib")
-if(NOT DEFINED NO_PKGCFG AND NOT "$ENV{NO_PKGCFG}" MATCHES "1")
+if(NOT NO_PKGCFG)
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(DEPS REQUIRED
 			libzip
@@ -103,8 +103,14 @@ if(NOT DEFINED NO_PKGCFG AND NOT "$ENV{NO_PKGCFG}" MATCHES "1")
 			libplist-2.0
 			libimobiledevice-glue-1.0
 			libimobiledevice-1.0
-			libirecovery-1.0)
+			libirecovery-1.0
+			libtatsu-1.0)
 	target_include_directories(idevicerestore PRIVATE "${DEPS_INCLUDE_DIRS}")
+	
+	# Check for reverse proxy header availability after we have include dirs
+	include(CheckIncludeFile)
+	set(CMAKE_REQUIRED_INCLUDES "${DEPS_INCLUDE_DIRS}")
+	check_include_file("libimobiledevice/reverse_proxy.h" HAVE_REVERSE_PROXY_H)
 else()
 	# When NO_PKGCFG is enabled, link against static libraries in dep_root
 	target_link_libraries(idevicerestore PRIVATE
@@ -112,12 +118,17 @@ else()
 			imobiledevice-glue-1.0
 			imobiledevice-1.0
 			irecovery-1.0
+			tatsu-1.0
 			zip
 			ssl
 			crypto
 			z
 			usbmuxd-2.0
 			usb-1.0)
+	# Check for reverse proxy header in dep_root when using static deps
+	include(CheckIncludeFile)
+	set(CMAKE_REQUIRED_INCLUDES "${CMAKE_SOURCE_DIR}/dep_root/include")
+	check_include_file("libimobiledevice/reverse_proxy.h" HAVE_REVERSE_PROXY_H)
 endif()
 execute_process(COMMAND git remote get-url origin WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/idevicerestore/src" OUTPUT_VARIABLE PACKAGE_URL1 OUTPUT_STRIP_TRAILING_WHITESPACE)
 string(REPLACE ".git" "" PACKAGE_URL PACKAGE_URL1)
@@ -126,16 +137,17 @@ add_definitions(
 		-DHAVE_IDEVICE_E_TIMEOUT=1
 		-DHAVE_RESTORE_E_RECEIVE_TIMEOUT=1
 		-DHAVE_ENUM_IDEVICE_CONNECTION_TYPE=1
-		-DHAVE_REVERSE_PROXY=1
 		-DHAVE_OPENSSL=1
 		-DPACKAGE_VERSION="${CMAKE_PROJECT_VERSION}"
 		-DPACKAGE_URL="${PACKAGE_URL}"
 		-DPACKAGE_BUGREPORT="${PACKAGE_URL}/issues"
 		-DPACKAGE_NAME="idevicerestore")
+if(HAVE_REVERSE_PROXY_H)
+	add_definitions(-DHAVE_REVERSE_PROXY=1)
+endif()
 if(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "MSYS" AND NOT "${CMAKE_SYSTEM_NAME}" MATCHES "Windows")
 	add_definitions(
-			-DHAVE_REALPATH=1
-			-DHAVE_REVERSE_PROXY=1)
+			-DHAVE_REALPATH=1)
 endif()
 if(NOT DEFINED SUBPROJECT_BUILD)
 	install(TARGETS idevicerestore
